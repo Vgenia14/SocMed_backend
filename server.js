@@ -23,9 +23,7 @@ const storage = new CloudinaryStorage({
     public_id: (req, file) => `profile_picture_${new Date().toISOString()}`,
   },
 });
-const secret = process.env.SECRET;
-const frontendURL = process.env.FRONTEND_URL;
-const mongodb_connect = process.env.MONGODB_CONNECT;
+
 const salt = 10;
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -34,11 +32,23 @@ app.use(cors({ credentials: true, origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 
 const upload = multer({ storage: storage });
-mongoose.connect(process.env.MONGODB_CONNECT);
+mongoose
+  .connect(
+    `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@${process.env.DB_HOST}?retryWrites=true&w=majority`,
+    { dbName: process.env.DB_NAME }
+  )
+  .then(() => {
+    console.log("Database connected");
+  })
+  .catch((err) => {
+    console.log(err);
+  });
 const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: { type: String, unique: true },
+  data: { type: String },
   profilePicture: String,
+
 });
 const User = mongoose.model("User", userSchema);
 app.get("/register", (req, res) => {
@@ -58,7 +68,7 @@ app.post("/register", upload.array("profilePicture"), async (req, res) => {
   try {
     // console.log(req.files);
     const hash = await bcrypt.hash(password, salt);
-    const user = new User({ email, password: hash });
+    const user = new User({ email, password: hash, data: new Date() });
     await user.save();
     // const user = await User.create({
     //   email,
